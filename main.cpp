@@ -4,11 +4,14 @@
 
 int main()
 {
-    FILE* fp = fopen("logs.txt", "w");
-    fclose(fp);
-    const char* input = "out.txt";
+    FILE* logs = fopen("logs.txt", "w");
+    fclose(logs);
 
-    Processor(input);
+    struct cpu cpu = {};
+
+    CpuCtor(&cpu);
+
+    Processor(&cpu);
 
     return 0;
 }
