@@ -1,15 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <assert.h>
 
 #include "processor.h"
 
-int Processor(struct cpu* cpu)
+static elem_t arg = 0;
+static elem_t* argptr = NULL;
+
+#define CPUCHECK if (int errors = CpuVerr(cpu))                                 \
+                    DBG CpuDump(*cpu, errors, __LINE__, __func__, __FILE__);
+
+int ProcessorMain(struct cpu* cpu)
 {
     for (cpu->ip = 0; cpu->ip < cpu->info.numofel; cpu->ip++)
     {
         char cmd = cpu->code[cpu->ip];
-        int val1 = 0, val2 = 0;
+        elem_t val1 = 0, val2 = 0;
 
         switch(cmd & 31)
         {
@@ -17,11 +24,11 @@ int Processor(struct cpu* cpu)
 case CMD_##name:                                                        \
     cod                                                                 \
     break;
-#include "C:\Users\USER\Documents\GitHub\Assembler\cmd.h"
+#include "..\Assembler\cmd.h"
 #undef DEF_CMD
             default:
+                CPUCHECK
                 printf("%c UNKNOWN COMMAND\n", *cpu->code);
-                CpuDump(*cpu, __LINE__, __func__, __FILE__);
                 break;
         }
     }
@@ -30,8 +37,11 @@ case CMD_##name:                                                        \
 
 int CpuCtor(struct cpu* cpu)
 {
-    cpu->stk = {};
-    StackCtor(&(cpu->stk), 5);
+    cpu->commands = {};
+
+    StackCtor(&cpu->commands, 5);
+    StackCtor(&cpu->returns, 5);
+
     struct cpuinfo info = {0, 0, 0};
 
     FILE* fp = fopen("out.txt", "r");
@@ -43,21 +53,26 @@ int CpuCtor(struct cpu* cpu)
     fread(cpu->code, sizeof(char), size, fp);
     fclose(fp);
 
-    CpuCheck(cpu);
+    CpuInfoCheck(cpu);
+
+    CPUCHECK
 
     return NOERR;
 }
 
 int CpuDetor(struct cpu* cpu)
 {
+    CPUCHECK
+
     free(cpu->code);
-    StackDetor(&cpu->stk);
+    StackDetor(&cpu->commands);
+    StackDetor(&cpu->returns);
     cpu->ip = 0;
 
     return NOERR;
 }
 
-int CpuCheck(struct cpu* cpu)
+int CpuInfoCheck(struct cpu* cpu)
 {
     cpu->info.sign = *(int*) cpu->code;
     if (cpu->info.sign != 'C' + 256 * 'P')
@@ -74,7 +89,7 @@ int CpuCheck(struct cpu* cpu)
     return NOERR;
 }
 
-int CpuDump(struct cpu cpu, int line, const char* func, const char* file)
+int CpuDump(struct cpu cpu, int errors, int line, const char* func, const char* file)
 {
     FILE* logs = fopen("logs.txt", "a");
     fprintf(logs, "\n%s at ", func);
@@ -82,67 +97,89 @@ int CpuDump(struct cpu cpu, int line, const char* func, const char* file)
     fprintf(logs, "(%d)\n", line);
     for (int i = 0; i < cpu.info.numofel; i++)
     {
-        fprintf(logs, "%2d ", i);
+        fprintf(logs, "%3d ", i);
     }
     fprintf(logs, "\n");
     for(int i = 0; i < cpu.info.numofel; i++)
     {
-        fprintf(logs, "%2d ", *(cpu.code + i));
+        fprintf(logs, "%3d ", *(cpu.code + i));
     }
     fprintf(logs, "\n");
     for(int i = 0; i < cpu.ip + 1; i++)
     {
-        fprintf(logs, "   ");
+        fprintf(logs, "    ");
     }
     fprintf(logs, " ^\n");
     for(int i = 0; i < cpu.ip + 1; i++)
     {
-        fprintf(logs, "   ");
+        fprintf(logs, "    ");
     }
     fprintf(logs, " ip\n");
 
     fclose(logs);
 
-    int errors = StackErr(&cpu.stk);
-    StackDump(&cpu.stk, errors, line, func, file);
-    UpdateHash(&cpu.stk);
+    errors = StackErr(&cpu.commands);
+    StackDump(&cpu.commands, errors, line, func, file);
+
+    errors = StackErr(&cpu.returns);
+    StackDump(&cpu.returns, errors, line, func, file);
+
+    UpdateHash(&cpu.commands);
+    UpdateHash(&cpu.returns);
 
     return NOERR;
 }
 
-int* GetAdr(struct cpu* cpu, char cmd)
+int CpuVerr(struct cpu* cpu)
 {
-    int arg = 0;
-    int* argptr = NULL;
+    int errors = 0;
+
+    assert(cpu != NULL);
+
+    if (cpu->code == NULL)
+        errors |= DATAERR;
+    if (cpu->ip > cpu->info.numofel)
+        errors |= IPERR;
+
+    return errors;
+}
+
+int GetArg(struct cpu* cpu, char cmd)
+{
+    arg = 0;
+    argptr = NULL;
 
     if (cmd & ARG_IMMED)
     {
-        arg += *(int*) (cpu->code + cpu->ip + 1);
+        arg += *(elem_t*) (cpu->code + cpu->ip + 1);
         argptr = &arg;
-        cpu->ip += sizeof(int);
+
+        cpu->ip += sizeof(elem_t);
     }
     if (cmd & ARG_REG)
     {
         cpu->ip += 1;
+
         arg += cpu->regs[cpu->code[cpu->ip]];
         argptr = cpu->regs + cpu->code[cpu->ip];
     }
     if (cmd & ARG_MEM)
     {
-        argptr = cpu->ram + arg;
+        argptr = cpu->ram + (int)arg;
+        arg = cpu->ram[(int)arg];
     }
 
-    return argptr;
+    return NOERR;
 }
 
-int SetArg(struct cpu* cpu, char cmd)
+elem_t SetArg(struct cpu* cpu, char cmd)
 {
-    int arg = 0;
+    elem_t arg = 0;
 
     if (cmd & ARG_IMMED)
     {
-        arg += *(int*) (cpu->code + cpu->ip + 1);
-        cpu->ip += sizeof(int);
+        arg += *(elem_t*) (cpu->code + cpu->ip + 1);
+        cpu->ip += sizeof(elem_t);
     }
     if (cmd & ARG_REG)
     {
@@ -151,8 +188,34 @@ int SetArg(struct cpu* cpu, char cmd)
     }
     if (cmd & ARG_MEM)
     {
-        arg = cpu->ram[arg];
+        arg = cpu->ram[(int)arg];
     }
 
     return arg;
+}
+
+int SetLabel(struct cpu* cpu)
+{
+    int label = *(int*)(cpu->code + cpu->ip + 1);
+
+    cpu->ip = label - 1;
+
+    return NOERR;
+}
+
+int RamWrite(struct cpu* cpu)
+{
+    for (int i = 0; i < 10; i++)
+    {
+        for (int j = 0; j < 10; j++)
+        {
+            if (cpu->ram[10 * i+j] != 0)
+                printf(" *");
+            else
+                printf(" .");
+        }
+        printf("\n");
+    }
+
+    printf("--------------------\n");
 }

@@ -11,7 +11,9 @@ int main()
 
     CpuCtor(&cpu);
 
-    Processor(&cpu);
+    ProcessorMain(&cpu);
+
+    CpuDetor(&cpu);
 
     return 0;
 }

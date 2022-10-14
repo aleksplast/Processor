@@ -1,24 +1,27 @@
 #ifndef PROCESSOR_H
 #define PROCESSOR_H
 
+#include "..\Assembler\Common.h"
 #include "text-sort.h"
 #include "stack.h"
 
-const int version = 1;
-
-int Processor(struct cpu* cpu);
+int ProcessorMain(struct cpu* cpu);
 
 int CpuCtor(struct cpu* cpu);
 
 int CpuDetor(struct cpu* cpu);
 
-int CpuCheck(struct cpu* cpu);
+int CpuInfoCheck(struct cpu* cpu);
 
-int CpuDump(struct cpu cpu, int line, const char* func, const char* file);
+int CpuDump(struct cpu cpu, int errors, int line, const char* func, const char* file);
 
-int* GetAdr(struct cpu* cpu, char cmd);
+int CpuVerr(struct cpu* cpu);
 
-int SetArg(struct cpu* cpu, char cmd);
+int SetLabel(struct cpu* cpu);
+
+int RamWrite(struct cpu* cpu);
+
+int GetArg(struct cpu* cpu, char cmd);
 
 struct cpuinfo
 {
@@ -31,32 +34,19 @@ struct cpu
 {
     struct cpuinfo info;
     char* code;
-    int regs[4];
+    elem_t regs[5];
     int ip;
-    int ram[100];
-    struct stack stk;
-};
-
-enum ComArgs{
-    ARG_MEM     = 128,
-    ARG_REG     = 64,
-    ARG_IMMED   = 32
+    elem_t ram[100];
+    struct stack commands;
+    struct stack returns;
 };
 
 enum ProcessorErrors
 {
-    SignErr,
-    VerErr,
+    SignErr =   1 << 1,
+    VerErr =    1 << 2,
+    ARITHERR =  1 << 3,
+    IPERR =     1 << 4,
 };
-
-
-#define DEF_CMD(name, num, arg, code) \
-    CMD_##name = num,
-enum Commands
-{
-#include "C:\Users\USER\Documents\GitHub\Assembler\cmd.h"
-    NOCMD = 31
-};
-#undef DEF_CMD
 
 #endif //PROCESSOR_H
