@@ -2,11 +2,13 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <TXLib.h>
 
 #include "processor.h"
 
 static elem_t arg = 0;
 static elem_t* argptr = NULL;
+const double EPSILON = 1e-10;
 
 #define CPUCHECK if (int errors = CpuVerr(cpu))                                 \
                     DBG CpuDump(*cpu, errors, __LINE__, __func__, __FILE__);
@@ -41,8 +43,6 @@ int CpuCtor(struct cpu* cpu)
 
     StackCtor(&cpu->commands, 5);
     StackCtor(&cpu->returns, 5);
-
-    struct cpuinfo info = {0, 0, 0};
 
     FILE* fp = fopen("out.txt", "r");
 
@@ -160,7 +160,7 @@ int GetArg(struct cpu* cpu, char cmd)
     {
         cpu->ip += 1;
 
-        arg += cpu->regs[cpu->code[cpu->ip]];
+        arg += cpu->regs[(int) cpu->code[cpu->ip]];
         argptr = cpu->regs + cpu->code[cpu->ip];
     }
     if (cmd & ARG_MEM)
@@ -170,28 +170,6 @@ int GetArg(struct cpu* cpu, char cmd)
     }
 
     return NOERR;
-}
-
-elem_t SetArg(struct cpu* cpu, char cmd)
-{
-    elem_t arg = 0;
-
-    if (cmd & ARG_IMMED)
-    {
-        arg += *(elem_t*) (cpu->code + cpu->ip + 1);
-        cpu->ip += sizeof(elem_t);
-    }
-    if (cmd & ARG_REG)
-    {
-        cpu->ip += 1;
-        arg += cpu->regs[cpu->code[cpu->ip]];
-    }
-    if (cmd & ARG_MEM)
-    {
-        arg = cpu->ram[(int)arg];
-    }
-
-    return arg;
 }
 
 int SetLabel(struct cpu* cpu)
@@ -205,17 +183,52 @@ int SetLabel(struct cpu* cpu)
 
 int RamWrite(struct cpu* cpu)
 {
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 20; i++)
     {
-        for (int j = 0; j < 10; j++)
+        for (int j = 0; j < 20; j++)
         {
-            if (cpu->ram[10 * i+j] != 0)
+            if (compare(cpu->ram[20 * i + j], 0) != 0)
+            {
+                SetColor(GREEN);
                 printf(" *");
+                SetColor(WHITE);
+            }
             else
+            {
+                SetColor(RED);
                 printf(" .");
+                SetColor(WHITE);
+            }
         }
         printf("\n");
     }
 
-    printf("--------------------\n");
+    return NOERR;
+}
+
+int SetColor(enum Colors color)
+{
+    if (color == WHITE)
+        txSetConsoleAttr(FOREGROUND_WHITE);
+    else if (color == GREEN)
+        txSetConsoleAttr(FOREGROUND_GREEN);
+    else if (color == RED)
+        txSetConsoleAttr(FOREGROUND_RED);
+
+    return NOERR;
+}
+
+int compare(const elem_t a, const elem_t b)
+{
+    assert(isfinite(a));
+    assert(isfinite(b));
+
+    if (fabs(a-b) < EPSILON)
+        return 0;
+    if ((a-b) > EPSILON)
+        return 1;
+    if ((a-b) < EPSILON)
+        return -1;
+
+    return NOERR;
 }

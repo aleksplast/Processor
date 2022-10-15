@@ -5,6 +5,8 @@
 #include "text-sort.h"
 #include "stack.h"
 
+const int RAMSIZE = 400;
+
 int ProcessorMain(struct cpu* cpu);
 
 int CpuCtor(struct cpu* cpu);
@@ -23,6 +25,8 @@ int RamWrite(struct cpu* cpu);
 
 int GetArg(struct cpu* cpu, char cmd);
 
+int compare(const elem_t a, const elem_t b);
+
 struct cpuinfo
 {
     int sign;
@@ -36,7 +40,7 @@ struct cpu
     char* code;
     elem_t regs[5];
     int ip;
-    elem_t ram[100];
+    elem_t ram[RAMSIZE];
     struct stack commands;
     struct stack returns;
 };
@@ -48,5 +52,14 @@ enum ProcessorErrors
     ARITHERR =  1 << 3,
     IPERR =     1 << 4,
 };
+
+enum Colors
+{
+    WHITE = 1, ///<Inficating white color
+    GREEN = 2, ///<indicating green color
+    RED   = 3, ///<Indicating red color
+};
+
+int SetColor(enum Colors color);
 
 #endif //PROCESSOR_H
