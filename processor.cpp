@@ -6,19 +6,16 @@
 
 #include "processor.h"
 
-static elem_t arg = 0;
-static elem_t* argptr = NULL;
-const double EPSILON = 1e-10;
-
 #define CPUCHECK if (int errors = CpuVerr(cpu))                                 \
                     DBG CpuDump(*cpu, errors, __LINE__, __func__, __FILE__);
 
 int ProcessorMain(struct cpu* cpu)
 {
+    txCreateWindow(800, 600);
+
     for (cpu->ip = 0; cpu->ip < cpu->info.numofel; cpu->ip++)
     {
         char cmd = cpu->code[cpu->ip];
-        elem_t val1 = 0, val2 = 0;
 
         switch(cmd & 31)
         {
@@ -30,8 +27,8 @@ case CMD_##name:                                                        \
 #undef DEF_CMD
             default:
                 CPUCHECK
-                printf("%c UNKNOWN COMMAND\n", *cpu->code);
-                break;
+                printf("%d UNKNOWN COMMAND\n", *cpu->code);
+                return COMERR;
         }
     }
     return NOERR;
@@ -138,8 +135,15 @@ int CpuVerr(struct cpu* cpu)
 
     if (cpu->code == NULL)
         errors |= DATAERR;
-    if (cpu->ip > cpu->info.numofel)
+    if (cpu->ip > cpu->info.numofel || cpu->ip == 0)
         errors |= IPERR;
+
+    errors |= StackErr(&cpu->commands);
+
+    errors |= StackErr(&cpu->returns);
+
+    UpdateHash(&cpu->commands);
+    UpdateHash(&cpu->returns);
 
     return errors;
 }
@@ -153,6 +157,7 @@ int GetArg(struct cpu* cpu, char cmd)
     {
         arg += *(elem_t*) (cpu->code + cpu->ip + 1);
         argptr = &arg;
+//        printf("arg = %d\n", (int) arg);
 
         cpu->ip += sizeof(elem_t);
     }
@@ -165,7 +170,8 @@ int GetArg(struct cpu* cpu, char cmd)
     }
     if (cmd & ARG_MEM)
     {
-        argptr = cpu->ram + (int)arg;
+        argptr = cpu->ram + (int) arg;
+//        printf("pop = %d\n", int(arg));
         arg = cpu->ram[(int)arg];
     }
 
@@ -183,37 +189,40 @@ int SetLabel(struct cpu* cpu)
 
 int RamWrite(struct cpu* cpu)
 {
-    for (int i = 0; i < 20; i++)
+    txSleep(5);
+//    txClear();
+
+    for (int i = 0; i < 40 * 30; i++)
     {
-        for (int j = 0; j < 20; j++)
+        if ((int) cpu->ram[i] == BLACK)
         {
-            if (compare(cpu->ram[20 * i + j], 0) != 0)
-            {
-                SetColor(GREEN);
-                printf(" *");
-                SetColor(WHITE);
-            }
-            else
-            {
-                SetColor(RED);
-                printf(" .");
-                SetColor(WHITE);
-            }
+            txSetColor(TX_BLACK);
+            txSetFillColor(TX_BLACK);
+            txRectangle(20 * (i % 40), 20 * (i / 40), 20 * (i % 40 + 1), 20 * (i / 40 + 1));
+            txSetFillColor(TX_WHITE);
         }
-        printf("\n");
+        if ((int) cpu->ram[i] == GRAY)
+        {
+            txSetColor(TX_GRAY);
+            txSetFillColor(TX_GRAY);
+            txRectangle(20 * (i % 40), 20 * (i / 40), 20 * (i % 40 + 1), 20 * (i / 40 + 1));
+            txSetFillColor(TX_WHITE);
+        }
+        if ((int) cpu->ram[i] == LIGHTGRAY)
+        {
+            txSetColor(TX_LIGHTGRAY);
+            txSetFillColor(TX_LIGHTGRAY);
+            txRectangle(20 * (i % 40), 20 * (i / 40), 20 * (i % 40 + 1), 20 * (i / 40 + 1));
+            txSetFillColor(TX_WHITE);
+        }
+        if ((int) cpu->ram[i] == WHITE)
+        {
+            txSetColor(TX_WHITE);
+            txSetFillColor(TX_WHITE);
+            txRectangle(20 * (i % 40), 20 * (i / 40), 20 * (i % 40 + 1), 20 * (i / 40 + 1));
+            txSetFillColor(TX_WHITE);
+        }
     }
-
-    return NOERR;
-}
-
-int SetColor(enum Colors color)
-{
-    if (color == WHITE)
-        txSetConsoleAttr(FOREGROUND_WHITE);
-    else if (color == GREEN)
-        txSetConsoleAttr(FOREGROUND_GREEN);
-    else if (color == RED)
-        txSetConsoleAttr(FOREGROUND_RED);
 
     return NOERR;
 }
