@@ -177,39 +177,16 @@ int SetLabel(struct cpu* cpu)
 
 int RamWrite(struct cpu* cpu)
 {
-    txSleep(5);
-//    txClear();
+    txSleep(1);
+    //txClear();
 
-    for (int i = 0; i < 40 * 30; i++)
+    for (int i = 0; i < 80 * 60; i++)
     {
-        if ((int) cpu->ram[i] == BLACK)
-        {
-            txSetColor(TX_BLACK);
-            txSetFillColor(TX_BLACK);
-            txRectangle(20 * (i % 40), 20 * (i / 40), 20 * (i % 40 + 1), 20 * (i / 40 + 1));
-            txSetFillColor(TX_WHITE);
-        }
-        if ((int) cpu->ram[i] == GRAY)
-        {
-            txSetColor(TX_GRAY);
-            txSetFillColor(TX_GRAY);
-            txRectangle(20 * (i % 40), 20 * (i / 40), 20 * (i % 40 + 1), 20 * (i / 40 + 1));
-            txSetFillColor(TX_WHITE);
-        }
-        if ((int) cpu->ram[i] == LIGHTGRAY)
-        {
-            txSetColor(TX_LIGHTGRAY);
-            txSetFillColor(TX_LIGHTGRAY);
-            txRectangle(20 * (i % 40), 20 * (i / 40), 20 * (i % 40 + 1), 20 * (i / 40 + 1));
-            txSetFillColor(TX_WHITE);
-        }
-        if ((int) cpu->ram[i] == WHITE)
-        {
-            txSetColor(TX_WHITE);
-            txSetFillColor(TX_WHITE);
-            txRectangle(20 * (i % 40), 20 * (i / 40), 20 * (i % 40 + 1), 20 * (i / 40 + 1));
-            txSetFillColor(TX_WHITE);
-        }
+        int color = (int) cpu->ram[i];
+        txSetColor(RGB(color % 256, (color / 256) % 256, color / 256 / 256));
+        txSetFillColor(RGB(color % 256, (color / 256) % 256, color / 256 / 256));
+        txRectangle(10 * (i % 80), 10 * (i / 80), 10 * (i % 80 + 1), 10 * (i / 80 + 1));
+        txSetFillColor(TX_WHITE);
     }
 
     return NOERR;
