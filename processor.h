@@ -10,6 +10,9 @@ static elem_t arg = 0;
 static elem_t* argptr = NULL;
 const double EPSILON = 1e-10;
 
+#define MASK 0x1F
+#define ELON MASK
+
 int ProcessorMain(struct cpu* cpu);
 
 int CpuCtor(struct cpu* cpu);

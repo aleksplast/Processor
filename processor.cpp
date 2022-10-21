@@ -9,31 +9,6 @@
 #define CPUCHECK if (int errors = CpuVerr(cpu))                                 \
                     DBG CpuDump(*cpu, errors, __LINE__, __func__, __FILE__);
 
-int ProcessorMain(struct cpu* cpu)
-{
-    txCreateWindow(800, 600);
-
-    for (cpu->ip = 0; cpu->ip < cpu->info.numofel; cpu->ip++)
-    {
-        char cmd = cpu->code[cpu->ip];
-
-        switch(cmd & 31)
-        {
-#define DEF_CMD(name, num, arg, cod)                                    \
-case CMD_##name:                                                        \
-    cod                                                                 \
-    break;
-#include "..\Assembler\cmd.h"
-#undef DEF_CMD
-            default:
-                CPUCHECK
-                printf("%d UNKNOWN COMMAND\n", *cpu->code);
-                return COMERR;
-        }
-    }
-    return NOERR;
-}
-
 int CpuCtor(struct cpu* cpu)
 {
     cpu->commands = {};
@@ -57,18 +32,6 @@ int CpuCtor(struct cpu* cpu)
     return NOERR;
 }
 
-int CpuDetor(struct cpu* cpu)
-{
-    CPUCHECK
-
-    free(cpu->code);
-    StackDetor(&cpu->commands);
-    StackDetor(&cpu->returns);
-    cpu->ip = 0;
-
-    return NOERR;
-}
-
 int CpuInfoCheck(struct cpu* cpu)
 {
     cpu->info.sign = *(int*) cpu->code;
@@ -84,6 +47,52 @@ int CpuInfoCheck(struct cpu* cpu)
     cpu->code += 3 * sizeof(int);
 
     return NOERR;
+}
+
+int ProcessorMain(struct cpu* cpu)
+{
+    txCreateWindow(800, 600);
+
+    for (cpu->ip = 0; cpu->ip < cpu->info.numofel; cpu->ip++)
+    {
+        char cmd = cpu->code[cpu->ip];
+
+        switch(cmd & ELON)
+        {
+#define DEF_CMD(name, num, arg, cod)                                    \
+case CMD_##name:                                                        \
+    cod                                                                 \
+    break;
+#include "..\Assembler\cmd.h"
+#undef DEF_CMD
+            default:
+                CPUCHECK
+                printf("%d UNKNOWN COMMAND\n", *cpu->code);
+                return COMERR;
+        }
+    }
+    return NOERR;
+}
+
+int CpuVerr(struct cpu* cpu)
+{
+    int errors = 0;
+
+    assert(cpu != NULL);
+
+    if (cpu->code == NULL)
+        errors |= DATAERR;
+    if (cpu->ip > cpu->info.numofel || cpu->ip == 0)
+        errors |= IPERR;
+
+    errors |= StackErr(&cpu->commands);
+
+    errors |= StackErr(&cpu->returns);
+
+    UpdateHash(&cpu->commands);
+    UpdateHash(&cpu->returns);
+
+    return errors;
 }
 
 int CpuDump(struct cpu cpu, int errors, int line, const char* func, const char* file)
@@ -125,27 +134,6 @@ int CpuDump(struct cpu cpu, int errors, int line, const char* func, const char* 
     UpdateHash(&cpu.returns);
 
     return NOERR;
-}
-
-int CpuVerr(struct cpu* cpu)
-{
-    int errors = 0;
-
-    assert(cpu != NULL);
-
-    if (cpu->code == NULL)
-        errors |= DATAERR;
-    if (cpu->ip > cpu->info.numofel || cpu->ip == 0)
-        errors |= IPERR;
-
-    errors |= StackErr(&cpu->commands);
-
-    errors |= StackErr(&cpu->returns);
-
-    UpdateHash(&cpu->commands);
-    UpdateHash(&cpu->returns);
-
-    return errors;
 }
 
 int GetArg(struct cpu* cpu, char cmd)
@@ -238,6 +226,18 @@ int compare(const elem_t a, const elem_t b)
         return 1;
     if ((a-b) < EPSILON)
         return -1;
+
+    return NOERR;
+}
+
+int CpuDetor(struct cpu* cpu)
+{
+    CPUCHECK
+
+    free(cpu->code);
+    StackDetor(&cpu->commands);
+    StackDetor(&cpu->returns);
+    cpu->ip = 0;
 
     return NOERR;
 }
