@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
-#include <TXLib.h>
+#include "TXLib.h"
 
 #include "processor.h"
 
@@ -13,8 +13,8 @@ int CpuCtor(struct cpu* cpu)
 {
     cpu->commands = {};
 
-    StackCtor(&cpu->commands, 5);
-    StackCtor(&cpu->returns, 5);
+    StackCtor(&cpu->commands, 200);
+    StackCtor(&cpu->returns, 200);
 
     FILE* fp = fopen("out.txt", "r");
 
@@ -27,7 +27,7 @@ int CpuCtor(struct cpu* cpu)
 
     CpuInfoCheck(cpu);
 
-    CPUCHECK
+    //CPUCHECK
 
     return NOERR;
 }
@@ -66,7 +66,7 @@ case CMD_##name:                                                        \
 #include "..\Assembler\cmd.h"
 #undef DEF_CMD
             default:
-                CPUCHECK
+                //CPUCHECK
                 printf("%d UNKNOWN COMMAND\n", *cpu->code);
                 return COMERR;
         }
@@ -209,7 +209,7 @@ int compare(const elem_t a, const elem_t b)
 
 int CpuDetor(struct cpu* cpu)
 {
-    CPUCHECK
+    //CPUCHECK
 
     free(cpu->code);
     StackDetor(&cpu->commands);

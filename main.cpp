@@ -13,7 +13,7 @@ int main()
 
     ProcessorMain(&cpu);
 
-    CpuDetor(&cpu);
+    //CpuDetor(&cpu);
 
     return 0;
 }
